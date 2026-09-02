@@ -25,7 +25,7 @@ module test_top (
 
  wire [9:0] next_x_vga;
  wire [9:0] next_y_vga;
- wire       vga_is_active;
+ wire        vga_is_active;
 
  // ----------------------------------------------------------
  // LATÊNCIA DO PIPELINE DE IMAGEM (versão simples e estável)
@@ -296,20 +296,19 @@ module test_top (
 
 
  // ============================================================
- // SPRITE
+ // ATRIBUTOS DOS SPRITES
  // ============================================================
 
  reg [31:0] sprite_attr_reg;
-
+ reg [31:0] sprite_attr_reg_2;
 
  always @(posedge clk_25mhz) begin
 
-  if(reset)
-
+  if(reset) begin
       sprite_attr_reg <= 32'd0;
-
-  else
-
+      sprite_attr_reg_2 <= 32'd0;
+  end else begin
+      // Sprite 1 (Original controlado pelo jogador)
       sprite_attr_reg <= {
           1'b1,
           2'b10,
@@ -322,9 +321,28 @@ module test_top (
           8'd168
       };
 
+      // Sprite 2 (Fixo na tela usando o mesmo Tile ID 0)
+      sprite_attr_reg_2 <= {
+          1'b1,              // Ativo = 1
+          2'b10,             // Palette info
+          1'b0,              // mirror_h
+          1'b0,              // mirror_v
+          1'b0,              // padding
+          9'd200,            // Posição X (Fixo em 200)
+          1'b0,              // padding
+          8'd0,              // Tile ID (0 = mesmo desenho do Sprite 1)
+          8'd168             // Posição Y 
+      };
+  end
+
  end
 
 
+ // ============================================================
+ // MOTORES DOS SPRITES
+ // ============================================================
+
+ // --- Fios do Sprite 1 ---
  wire [10:0] spr_tile_addr;
  wire [7:0] spr_tile_data;
  wire [7:0] spr_color;
@@ -333,7 +351,15 @@ module test_top (
  wire sprite_wr = ~reset;
  wire [4:0] sprite_id = 5'd0;
 
+ // --- Fios do Sprite 2 ---
+ wire [10:0] spr_tile_addr_2;
+ wire [7:0] spr_tile_data_2;
+ wire [7:0] spr_color_2;
+ wire spr_hit_2;
+ wire [4:0] sprite_id_2 = 5'd1;
 
+
+ // Instância do Sprite Engine 1
  sprite_engine sprite_inst(
   .clk(clk_25mhz),
   .reset(reset),
@@ -352,15 +378,42 @@ module test_top (
   .sprite_hit_out(spr_hit)
  );
 
+ // Instância do Sprite Engine 2
+ sprite_engine sprite_inst_2(
+  .clk(clk_25mhz),
+  .reset(reset),
+
+  .pixel_x(x_logico),
+  .pixel_y(y_logico),
+
+  .sprite_attr(sprite_attr_reg_2),
+  .wr_sprite(sprite_wr),
+  .sprite_id(sprite_id_2),
+
+  .tile_addr(spr_tile_addr_2),
+  .tile_data(spr_tile_data_2),
+
+  .sprite_color(spr_color_2),
+  .sprite_hit_out(spr_hit_2)
+ );
+
 
  // ============================================================
- // SPRITE TILE ROM
+ // SPRITE TILE ROM (DUPLICADAS PARA LER AO MESMO TEMPO)
  // ============================================================
 
+ // ROM para o Sprite 1
  sprite_tile_rom spr_rom_inst(
   .clk(clk_25mhz),
   .addr(spr_tile_addr),
   .data(spr_tile_data)
+ );
+
+ // ROM separada para o Sprite 2
+ sprite_tile_rom spr_rom_inst_2(
+  .clk(clk_25mhz),
+  .addr(spr_tile_addr_2),
+  .data(spr_tile_data_2)
  );
 
 
@@ -419,10 +472,26 @@ module test_top (
 
 
  // ============================================================
- // COMPOSITOR
+ // COMBINAÇÃO DOS SPRITES E COMPOSIÇÃO FINAL
  // ============================================================
 
  wire [7:0] final_color;
+
+ // --- NOVO: Máscara do Framebuffer via Switch 9 ---
+ // Se SW[9] for 1, repassa os dados do framebuffer normalmente.
+ // Se SW[9] for 0, passa a cor transparente (8'h00), "apagando" o rasterizador.
+ wire [7:0] fb_color_to_compositor = SW[9] ? fb_read_data : 8'h00;
+
+ // Lógica que previne a sobreposição com pixel transparente 
+ // Confirma o hit SOMENTE se a cor não for transparente (8'h00)
+ wire valid_hit_1 = spr_hit && (spr_color != 8'h00);
+ wire valid_hit_2 = spr_hit_2 && (spr_color_2 != 8'h00);
+
+ wire combined_spr_hit = valid_hit_1 | valid_hit_2;
+
+ // Se o Sprite 1 tiver um hit válido e opaco, ele ganha.
+ // Caso contrário, a cor do Sprite 2 passa.
+ wire [7:0] combined_spr_color = valid_hit_1 ? spr_color : spr_color_2;
 
 
  compositor comp_inst(
@@ -430,10 +499,10 @@ module test_top (
   .reset(reset),
 
   .bg_color(bg_color),
-  .fb_color(fb_read_data),
+  .fb_color(fb_color_to_compositor), // <--- O Framebuffer agora passa pela máscara
 
-  .sprite_color(spr_color),
-  .sprite_hit(spr_hit),
+  .sprite_color(combined_spr_color),
+  .sprite_hit(combined_spr_hit),
 
   .final_color(final_color)
  );
