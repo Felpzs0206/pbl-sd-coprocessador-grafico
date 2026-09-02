@@ -1,0 +1,21 @@
+# Quartus e ModelSim 
+*.bak
+*.ppm
+*.wlf
+transcript
+c5_pin_model_dump.txt
+filelist.txt
+
+# Pastas de compilação e banco de dados do Quartus
+db/
+incremental_db/
+output_files/
+composer/
+
+# Pastas de trabalho do ModelSim
+work/
+work2/
+work3/
+work_2/
+work_composer/
+work_composer_2/
