@@ -83,13 +83,13 @@ Possui uma arquitetura que, a cada pixel renderizado, varre os atributos dos 32 
 
 Uma máquina de estados sequencial (FSM) responsável por desenhar e preencher formas geométricas primitivas. A máquina itera sobre todos os pixels da _bounding box_ (caixa delimitadora retangular) da forma e decide se aquele pixel específico deve ser pintado ou não.
 
-A matemática de preenchimento varia conforme a forma:
+A lógica de preenchimento varia conforme a forma:
 
 - **Retângulos:** A rasterização é direta. Define-se a origem em `(x0, y0)` e utiliza-se `(x1, y1)` como a largura e altura. Como a própria _bounding box_ percorrida pelo motor já é, por definição, o retângulo inteiro, a pertinência é imediata (`pixel_pertence = 1`). Todos os pixels varridos na área são gravados sequencialmente no Framebuffer.
-- **Triângulos (Algoritmo de Equação de Bordas):** O preenchimento de triângulos utiliza um clássico e eficiente algoritmo de computação gráfica baseado em vetores (Produto Vetorial / _Cross Product_).
-  - O motor recebe os 3 vértices do triângulo: `(x0,y0)`, `(x1,y1)` e `(x2,y2)`.
+- **Triângulos (Algoritmo de Equação de Bordas):** O preenchimento de triângulos utiliza um algoritmo baseado em vetores (Produto Vetorial).
+  - O módulo recebe os 3 vértices do triângulo: `(x0,y0)`, `(x1,y1)` e `(x2,y2)`.
   - A máquina descobre e varre apenas a menor área retangular (_bounding box_) que engloba esses 3 pontos, para não desperdiçar ciclos processando a tela inteira.
-  - Para cada pixel `P(x, y)` dessa área, o hardware calcula 3 equações de borda ($E_0$, $E_1$ e $E_2$), que indicam de qual lado o pixel está em relação a cada reta que forma o triângulo:
+  - Para cada pixel `P(x, y)` dessa área, o módulo calcula 3 equações de borda ($E_0$, $E_1$ e $E_2$), que indicam de qual lado o pixel está em relação a cada reta que forma o triângulo:
     - $E_0 = (P_x - x_0) \times (y_1 - y_0) - (P_y - y_0) \times (x_1 - x_0)$
     - $E_1 = (P_x - x_1) \times (y_2 - y_1) - (P_y - y_1) \times (x_2 - x_1)$
     - $E_2 = (P_x - x_2) \times (y_0 - y_2) - (P_y - y_2) \times (x_0 - x_2)$
@@ -119,7 +119,7 @@ O compositor recebe, **exatamente no mesmo ciclo de clock**, as informações de
 
 1. Clone este repositório no seu computador local:
    ```bash
-   git clone https://github.com/SEU_USUARIO/PBL_SD.git
+   git clone https://github.com/Felpzs0206/pbl-sd-coprocessador-grafico.git
    ```
 2. Abra o software **Quartus Prime**.
 3. Vá em `File > Open Project` e selecione o arquivo **`PBL_SD.qpf`** localizado na raiz do repositório.
