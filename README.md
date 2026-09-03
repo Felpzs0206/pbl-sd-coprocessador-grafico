@@ -156,7 +156,9 @@ O repositório está pronto para a verificação lógica das camadas.
 
 ## Resultados
 
-_add as imagens_
+![Resultado VGA 1](./img/img_vga.png)
+
+![Resultado VGA 2](./img/img_vga1.png)
 
 ## Funcionalidades Não Atendidas
 
