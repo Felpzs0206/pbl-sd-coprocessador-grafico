@@ -6,11 +6,23 @@ O objetivo do núcleo gráfico é gerar continuamente um sinal de vídeo VGA e r
 
 ---
 
-## Principais Funcionalidades
+## Levantamento de Requisitos
 
-O coprocessador opera com uma resolução lógica de **320x240 pixels**, que é duplicada por hardware (pixel doubling) para gerar um sinal VGA padrão de **640x480 pixels a ~60 Hz**.
+### Requisitos Funcionais
 
-Todos os elementos gráficos utilizam um índice de cor de 8 bits, permitindo uma paleta programável de até **256 cores** (onde a cor `0` atua como transparência para sprites e polígonos).
+- **Geração de Sinal de Vídeo:** O sistema deve gerar um sinal de vídeo VGA em 640x480 pixels a 60 Hz.
+- **Resolução Lógica:** A cena deve operar com resolução lógica de 320x240 pixels, com duplicação de pixels (pixel doubling) na saída.
+- **Motor de Background:** Implementar uma camada de plano de fundo baseada em _tilemap_ de 40x30 posições, utilizando tiles de 8x8 pixels, permitindo deslocamento (scroll) horizontal e vertical.
+- **Motor de Sprites:** Renderizar até 32 sprites independentes de 16x16 pixels, suportando posicionamento na tela, espelhamento, prioridade, habilitação e transparência (cor 0).
+- **Rasterizador de Polígonos:** Desenhar e preencher formas geométricas primitivas (retângulos e triângulos preenchidos) em hardware utilizando aritmética inteira.
+- **Compositor e Paleta de Cores:** Combinar todas as camadas (background, sprites, polígonos) respeitando regras de prioridade e transparência, e converter índices de cores (8 bits) em sinais RGB analógicos através de uma paleta de 256 cores programável.
+
+### Requisitos Não Funcionais
+
+- **Modularidade:** O código em Verilog deve ter separação clara entre controle, datapath, memórias, motores gráficos e saída de vídeo.
+- **Estabilidade Visual:** O sinal de vídeo deve apresentar estabilidade visual durante a inicialização e operação contínua.
+- **Inicialização:** Os registradores e memórias devem possuir uma estratégia definida para inicialização/reinicialização.
+- **Hardware:** O projeto deve ser inteiramente sintetizável na placa Terasic DE1-SoC (Intel/Altera Cyclone V).
 
 ---
 
@@ -123,12 +135,13 @@ O compositor recebe, **exatamente no mesmo ciclo de clock**, as informações de
    ```
 2. Abra o software **Quartus Prime**.
 3. Vá em `File > Open Project` e selecione o arquivo **`PBL_SD.qpf`** localizado na raiz do repositório.
-4. No menu superior, clique em **Processing > Start Compilation** (ou aperte `Ctrl + L`) para realizar a Síntese (Analysis & Synthesis) e o roteamento (Fitter).
-5. Aguarde o fim da compilação.
-6. Conecte sua placa DE1-SoC ao computador (cabo USB Blaster) e ao monitor VGA. Ligue-a.
-7. Vá em **Tools > Programmer**.
-8. Confirme se o `Hardware Setup` está apontando para o _USB-Blaster_. Adicione o arquivo de configuração `.sof` (localizado dentro da pasta `output_files/`).
-9. Marque a opção "Program/Configure" e clique em **Start**. A FPGA será gravada e o coprocessador iniciará a exibição no monitor instantaneamente.
+4. Defina o arquivo `teste_top` como entidade principal (*top-level*). Esse arquivo já instancia todos os submódulos (motores gráficos e memórias) aplicando um fluxo de exemplo para gerar a demonstração na tela.
+5. No menu superior, clique em **Processing > Start Compilation** (ou aperte `Ctrl + L`) para realizar a Síntese (Analysis & Synthesis) e o roteamento (Fitter).
+6. Aguarde o fim da compilação.
+7. Conecte sua placa DE1-SoC ao computador (cabo USB Blaster) e ao monitor VGA. Ligue-a.
+8. Vá em **Tools > Programmer**.
+9. Confirme se o `Hardware Setup` está apontando para o _USB-Blaster_. Adicione o arquivo de configuração `.sof` (localizado dentro da pasta `output_files/`).
+10. Marque a opção "Program/Configure" e clique em **Start**. A FPGA será gravada e o coprocessador iniciará a exibição no monitor instantaneamente.
 
 ### 2. Rodando Testes em Simulação (ModelSim)
 
@@ -138,3 +151,19 @@ O repositório está pronto para a verificação lógica das camadas.
 2. Altere o diretório base para a raiz do repositório.
 3. Compile todos os arquivos da pasta `/rtl/` e o testbench que desejar da pasta `/tb/`.
 4. Inicialize a simulação e deixe rodar tempo suficiente para a renderização do frame (os testbenches possuem scripts que escrevem arquivos de imagem `.ppm` contendo a saída gráfica em tempo de simulação para verificação das transparências e sobreposições).
+
+---
+
+## Resultados
+
+_add as imagens_
+
+## Funcionalidades Não Atendidas
+
+- **Troca de Buffers (Double Buffering):** O requisito de utilização de troca de buffers para a memória de vídeo não pôde ser plenamente atendido no prazo. Como não implementamos o _double buffer_, eventuais atualizações de polígonos sendo gravadas na memória ao mesmo tempo em que a tela está sendo exibida podem ocasionar pequenos artefatos ou recortes visuais indesejados (_flickering_).
+
+## Melhorias Futuras
+
+- **Implementação do Double Buffer:** Adicionar um banco duplo de memórias para o Framebuffer, permitindo que as renderizações do quadro seguinte ocorram em um buffer oculto enquanto o controlador VGA lê os dados do quadro atual exibido na tela.
+- **Movimentação e Edição de Polígonos:** Expandir a arquitetura do rasterizador para suportar de forma mais intuitiva o deslocamento e a mudança de cor de objetos poligonais já rasterizados, sem a necessidade constante de limpar e repintar toda a cena base no Framebuffer.
+- **Ampliação do Datapath:** Otimizar as buscas de memórias para permitir a renderização de cenários mais avançados ou aumentar a quantidade de sprites exibidos em uma única linha horizontal.
